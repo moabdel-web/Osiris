@@ -331,7 +331,7 @@ export default function GlobeScene({
   return (
     <div className="absolute inset-0" style={{ background: "#c8c8c8" }}>
       <Canvas
-        camera={{ position: [0, 0.4, 3.8], fov: 48, near: 0.1, far: 100 }}
+        camera={{ position: [0, 0.5, 5], fov: 40, near: 0.1, far: 100 }}
         gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
         dpr={[1, 1.5]}
       >

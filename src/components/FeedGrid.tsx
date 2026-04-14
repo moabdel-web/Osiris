@@ -16,9 +16,8 @@ function GridCell({ index, onClick, hidden }: { index: number; onClick: () => vo
   return (
     <button
       onClick={onClick}
-      className={`focus:outline-none ${hidden ? "hidden sm:block" : ""}`}
+      className={`focus:outline-none ${hidden ? "hidden sm:block" : ""} aspect-[3/5] sm:aspect-[3/4]`}
       style={{
-        aspectRatio: "3 / 4",
         border: "2px solid #fff",
         background: "#fff",
         padding: "0",
