@@ -322,20 +322,32 @@ export default function GlobeScene({
 }: {
   onLockedTerritory: () => void;
 }) {
-  const [selected, setSelected] = useState<TourStop | null>(null);
+  const [spinTarget, setSpinTarget] = useState<TourStop | null>(null);
+  const [sheetStop, setSheetStop] = useState<TourStop | null>(null);
+
+  const selectStop = useCallback((stop: TourStop) => {
+    setSpinTarget(stop);
+    // Delay bottom sheet so user sees the globe spin first
+    setTimeout(() => setSheetStop(stop), 800);
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSpinTarget(null);
+    setSheetStop(null);
+  }, []);
 
   const handleMarkerClick = useCallback((stop: TourStop) => {
-    setSelected(stop);
-  }, []);
+    selectStop(stop);
+  }, [selectStop]);
 
   return (
     <div className="absolute inset-0" style={{ background: "#c8c8c8" }}>
       <Canvas
-        camera={{ position: [0, 0.5, 5], fov: 40, near: 0.1, far: 100 }}
+        camera={{ position: [0, 0.5, 6.5], fov: 35, near: 0.1, far: 100 }}
         gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
         dpr={[1, 1.5]}
       >
-        <GlobeInner selectedId={selected?.id ?? null} onMarkerClick={handleMarkerClick} />
+        <GlobeInner selectedId={spinTarget?.id ?? null} onMarkerClick={handleMarkerClick} />
       </Canvas>
 
       {/* Desktop: sidebar list */}
@@ -354,17 +366,17 @@ export default function GlobeScene({
           {TOUR_STOPS.map((stop) => (
             <button
               key={stop.id}
-              onClick={() => setSelected(stop)}
+              onClick={() => selectStop(stop)}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
                 width: "100%",
                 fontSize: "12px",
-                color: selected?.id === stop.id ? "#fff" : "#333",
-                fontWeight: selected?.id === stop.id ? "bold" : 500,
+                color: spinTarget?.id === stop.id ? "#fff" : "#333",
+                fontWeight: spinTarget?.id === stop.id ? "bold" : 500,
                 padding: "6px 8px",
-                background: selected?.id === stop.id ? "#4a7abc" : "transparent",
+                background: spinTarget?.id === stop.id ? "#4a7abc" : "transparent",
                 border: "none",
                 borderRadius: "4px",
                 cursor: "pointer",
@@ -373,7 +385,7 @@ export default function GlobeScene({
               }}
             >
               <span>{stop.city}</span>
-              <span style={{ color: selected?.id === stop.id ? "rgba(255,255,255,0.7)" : "#999", fontSize: "10px" }}>{stop.date}</span>
+              <span style={{ color: spinTarget?.id === stop.id ? "rgba(255,255,255,0.7)" : "#999", fontSize: "10px" }}>{stop.date}</span>
             </button>
           ))}
         </div>
@@ -390,15 +402,15 @@ export default function GlobeScene({
           {TOUR_STOPS.map((stop) => (
             <button
               key={stop.id}
-              onClick={() => setSelected(stop)}
+              onClick={() => selectStop(stop)}
               style={{
                 flexShrink: 0,
                 fontSize: "11px",
-                color: selected?.id === stop.id ? "#fff" : "#555",
-                fontWeight: selected?.id === stop.id ? "bold" : 500,
+                color: spinTarget?.id === stop.id ? "#fff" : "#555",
+                fontWeight: spinTarget?.id === stop.id ? "bold" : 500,
                 padding: "6px 12px",
-                background: selected?.id === stop.id ? "#4a7abc" : "#e8e8e8",
-                border: "1px solid " + (selected?.id === stop.id ? "#3a6a9a" : "#c0c0c0"),
+                background: spinTarget?.id === stop.id ? "#4a7abc" : "#e8e8e8",
+                border: "1px solid " + (spinTarget?.id === stop.id ? "#3a6a9a" : "#c0c0c0"),
                 borderRadius: "16px",
                 cursor: "pointer",
                 whiteSpace: "nowrap",
@@ -410,7 +422,7 @@ export default function GlobeScene({
         </div>
       </div>
 
-      <BottomSheet stop={selected} onClose={() => setSelected(null)} />
+      <BottomSheet stop={sheetStop} onClose={clearSelection} />
     </div>
   );
 }
