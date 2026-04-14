@@ -25,6 +25,7 @@ html, body {
   color: #222;
   font-family: "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
 }
 
 /* Blinking */

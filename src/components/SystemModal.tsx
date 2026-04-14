@@ -43,7 +43,7 @@ export default function SystemModal({ isOpen, onClose }: SystemModalProps) {
             exit={{ scale: 0.85, opacity: 0 }}
             transition={{ type: "spring", damping: 25, stiffness: 400 }}
             style={{
-              width: "300px",
+              width: "min(300px, 90vw)",
               borderRadius: "12px",
               overflow: "hidden",
               background: "linear-gradient(180deg, #f6f6f6 0%, #e8e8e8 100%)",

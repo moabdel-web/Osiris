@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo, useCallback, useEffect, Suspense, useState } from "react";
+import { useRef, useMemo, useCallback, Suspense, useState } from "react";
 import { Canvas, useFrame, useThree, useLoader } from "@react-three/fiber";
 import { OrbitControls, Html } from "@react-three/drei";
 import * as THREE from "three";
@@ -33,18 +33,22 @@ function latLngToVec3(lat: number, lng: number, r: number): THREE.Vector3 {
   );
 }
 
-// Convert lat/lng to the Y-rotation needed to face that point toward camera
-function latLngToYRotation(lng: number): number {
-  return -((lng + 180) * (Math.PI / 180)) + Math.PI;
-}
-
 const GLOBE_RADIUS = 1.4;
 
+// Pre-compute transforms AND the Y-rotation that faces each stop toward camera (+Z)
+// Math: given local position (px, py, pz), rotating by atan2(-px, pz) around Y
+// puts the point at x=0, z=+r (directly facing the camera)
 const STOP_TRANSFORMS = TOUR_STOPS.map((stop) => {
   const pos = latLngToVec3(stop.lat, stop.lng, GLOBE_RADIUS);
   const dir = pos.clone().normalize();
   const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-  return { stop, pos: pos.toArray() as [number, number, number], quat: [q.x, q.y, q.z, q.w] as [number, number, number, number] };
+  const facingY = Math.atan2(-pos.x, pos.z);
+  return {
+    stop,
+    pos: pos.toArray() as [number, number, number],
+    quat: [q.x, q.y, q.z, q.w] as [number, number, number, number],
+    facingY,
+  };
 });
 
 /* ------------------------------------------------------------------ */
@@ -54,7 +58,7 @@ const STOP_TRANSFORMS = TOUR_STOPS.map((stop) => {
 function EarthGlobe({ selectedId, onMarkerClick }: { selectedId: string | null; onMarkerClick: (stop: TourStop) => void }) {
   const groupRef = useRef<THREE.Group>(null);
   const targetRotationY = useRef<number | null>(null);
-  const autoRotation = useRef(0);
+  const lastSelectedId = useRef<string | null>(null);
 
   const [waterMask, topoMap] = useLoader(THREE.TextureLoader, [
     "/textures/earth-spec.jpg",
@@ -69,36 +73,49 @@ function EarthGlobe({ selectedId, onMarkerClick }: { selectedId: string | null; 
     });
   }, [waterMask, topoMap]);
 
-  // When selectedId changes, compute target rotation
-  useEffect(() => {
-    if (selectedId) {
-      const stop = TOUR_STOPS.find(s => s.id === selectedId);
-      if (stop) {
-        targetRotationY.current = latLngToYRotation(stop.lng);
-      }
-    } else {
-      targetRotationY.current = null;
-    }
-  }, [selectedId]);
-
   useFrame((_, delta) => {
     if (!groupRef.current) return;
+    const TWO_PI = Math.PI * 2;
 
+    // Detect selection change
+    if (selectedId !== lastSelectedId.current) {
+      lastSelectedId.current = selectedId;
+
+      if (selectedId) {
+        const data = STOP_TRANSFORMS.find(s => s.stop.id === selectedId);
+        if (data) {
+          const current = groupRef.current.rotation.y;
+          const target = data.facingY;
+
+          // Normalize current to 0..2π
+          const curNorm = ((current % TWO_PI) + TWO_PI) % TWO_PI;
+          // Normalize target to 0..2π
+          const tarNorm = ((target % TWO_PI) + TWO_PI) % TWO_PI;
+
+          // Shortest angular distance
+          let diff = tarNorm - curNorm;
+          if (diff > Math.PI) diff -= TWO_PI;
+          if (diff < -Math.PI) diff += TWO_PI;
+
+          // Set absolute target from current accumulated rotation
+          targetRotationY.current = current + diff;
+        }
+      } else {
+        targetRotationY.current = null;
+      }
+    }
+
+    // Animate
     if (targetRotationY.current !== null) {
-      const current = groupRef.current.rotation.y;
-      const target = targetRotationY.current;
-
-      // Shortest rotation path
-      let diff = target - current;
-      while (diff > Math.PI) diff -= Math.PI * 2;
-      while (diff < -Math.PI) diff += Math.PI * 2;
-
-      // Faster lerp so it's visibly spinning
-      groupRef.current.rotation.y += diff * 0.08;
-      autoRotation.current = groupRef.current.rotation.y;
+      const diff = targetRotationY.current - groupRef.current.rotation.y;
+      if (Math.abs(diff) < 0.002) {
+        groupRef.current.rotation.y = targetRotationY.current;
+      } else {
+        groupRef.current.rotation.y += diff * 0.06;
+      }
     } else {
-      autoRotation.current += delta * 0.08;
-      groupRef.current.rotation.y = autoRotation.current;
+      // Auto-rotate
+      groupRef.current.rotation.y += delta * 0.08;
     }
   });
 
@@ -178,9 +195,12 @@ function TourMarker({ pos, quat, stop, isSelected, onClick }: {
         <meshBasicMaterial color="#4a7abc" />
       </mesh>
 
-      {/* Label */}
-      <Html position={[0, 0.14, 0]} center style={{ pointerEvents: "none", whiteSpace: "nowrap", userSelect: "none" }}>
-        <div style={{
+      {/* Label — clickable even when behind the globe */}
+      <Html position={[0, 0.14, 0]} center style={{ whiteSpace: "nowrap", userSelect: "none" }}>
+        <div
+          onClick={() => onClick(stop)}
+          style={{
+          cursor: "pointer",
           background: active ? "#4a7abc" : "rgba(255,255,255,0.9)",
           color: active ? "#fff" : "#333",
           fontSize: "9px",
@@ -232,7 +252,7 @@ function BottomSheet({ stop, onClose }: { stop: TourStop | null; onClose: () => 
           exit={{ y: "100%" }}
           transition={{ type: "spring", damping: 32, stiffness: 350, mass: 0.8 }}
           className="absolute bottom-0 left-0 right-0 z-40"
-          style={{ minHeight: "180px" }}
+          style={{ minHeight: "160px" }}
         >
           <div style={{
             position: "absolute", inset: 0,
@@ -242,13 +262,13 @@ function BottomSheet({ stop, onClose }: { stop: TourStop | null; onClose: () => 
             boxShadow: "0 -2px 12px rgba(0,0,0,0.1)",
           }} />
 
-          <div style={{ position: "relative", zIndex: 10, padding: "20px" }}>
-            <div style={{ width: "40px", height: "4px", background: "#ccc", borderRadius: "2px", margin: "0 auto 16px" }} />
+          <div style={{ position: "relative", zIndex: 10, padding: "14px 16px" }}>
+            <div style={{ width: "36px", height: "4px", background: "#ccc", borderRadius: "2px", margin: "0 auto 12px" }} />
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
               <div>
-                <h2 style={{ fontSize: "18px", fontWeight: "bold", color: "#222" }}>{stop.city}</h2>
-                <p style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>{stop.country}</p>
+                <h2 className="text-[16px] sm:text-[18px]" style={{ fontWeight: "bold", color: "#222" }}>{stop.city}</h2>
+                <p className="text-[11px] sm:text-[12px]" style={{ color: "#888", marginTop: "2px" }}>{stop.country}</p>
               </div>
               <div style={{
                 padding: "4px 12px",
@@ -311,42 +331,83 @@ export default function GlobeScene({
   return (
     <div className="absolute inset-0" style={{ background: "#c8c8c8" }}>
       <Canvas
-        camera={{ position: [0, 0.6, 4.5], fov: 42, near: 0.1, far: 100 }}
+        camera={{ position: [0, 0.4, 3.8], fov: 48, near: 0.1, far: 100 }}
         gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
         dpr={[1, 1.5]}
       >
         <GlobeInner selectedId={selected?.id ?? null} onMarkerClick={handleMarkerClick} />
       </Canvas>
 
-      {/* Tour stops list — clickable */}
-      <div className="absolute top-3 left-3" style={{ maxWidth: "200px" }}>
+      {/* Desktop: sidebar list */}
+      <div className="absolute top-3 left-3 hidden sm:block" style={{
+        maxWidth: "220px",
+        background: "rgba(255,255,255,0.92)",
+        border: "1px solid #b8b8b8",
+        borderRadius: "6px",
+        padding: "10px 12px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+      }}>
         <p style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "#888", letterSpacing: "0.1em", marginBottom: "8px", textTransform: "uppercase" }}>
           World Tour
         </p>
-        {TOUR_STOPS.map((stop) => (
-          <button
-            key={stop.id}
-            onClick={() => setSelected(stop)}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              width: "100%",
-              fontSize: "11px",
-              color: selected?.id === stop.id ? "#2255aa" : "#555",
-              fontWeight: selected?.id === stop.id ? "bold" : 500,
-              padding: "4px 0",
-              borderBottom: "1px solid #bbb",
-              background: "none",
-              border: "none",
-              borderBlockEnd: "1px solid #bbb",
-              cursor: "pointer",
-              textAlign: "left",
-            }}
-          >
-            <span>{stop.city}</span>
-            <span style={{ color: "#999", fontSize: "10px" }}>{stop.date}</span>
-          </button>
-        ))}
+        <div className="flex flex-col gap-1">
+          {TOUR_STOPS.map((stop) => (
+            <button
+              key={stop.id}
+              onClick={() => setSelected(stop)}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                width: "100%",
+                fontSize: "12px",
+                color: selected?.id === stop.id ? "#fff" : "#333",
+                fontWeight: selected?.id === stop.id ? "bold" : 500,
+                padding: "6px 8px",
+                background: selected?.id === stop.id ? "#4a7abc" : "transparent",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                textAlign: "left",
+                transition: "all 0.15s",
+              }}
+            >
+              <span>{stop.city}</span>
+              <span style={{ color: selected?.id === stop.id ? "rgba(255,255,255,0.7)" : "#999", fontSize: "10px" }}>{stop.date}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Mobile: compact bottom bar with horizontal scroll */}
+      <div className="absolute bottom-0 left-0 right-0 sm:hidden" style={{
+        background: "rgba(255,255,255,0.95)",
+        borderTop: "1px solid #b8b8b8",
+        padding: "6px 4px",
+        boxShadow: "0 -2px 8px rgba(0,0,0,0.08)",
+      }}>
+        <div style={{ display: "flex", gap: "4px", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+          {TOUR_STOPS.map((stop) => (
+            <button
+              key={stop.id}
+              onClick={() => setSelected(stop)}
+              style={{
+                flexShrink: 0,
+                fontSize: "11px",
+                color: selected?.id === stop.id ? "#fff" : "#555",
+                fontWeight: selected?.id === stop.id ? "bold" : 500,
+                padding: "6px 12px",
+                background: selected?.id === stop.id ? "#4a7abc" : "#e8e8e8",
+                border: "1px solid " + (selected?.id === stop.id ? "#3a6a9a" : "#c0c0c0"),
+                borderRadius: "16px",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {stop.city}
+            </button>
+          ))}
+        </div>
       </div>
 
       <BottomSheet stop={selected} onClose={() => setSelected(null)} />

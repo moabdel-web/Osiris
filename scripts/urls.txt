@@ -1,0 +1,15 @@
+# Paste image URLs here, one per line
+# Then run: node scripts/fetch-feed.js
+#
+# HOW TO GET URLS FAST:
+# 1. Go to instagram.com/bloodyosiris
+# 2. Open browser DevTools (F12) → Console
+# 3. Paste this and hit Enter:
+#
+#    document.querySelectorAll('img[srcset]').forEach(img => console.log(img.src))
+#
+# 4. Copy all the URLs and paste them below
+# 5. Run: node scripts/fetch-feed.js
+#
+# Or just right-click images → "Copy image address" and paste below.
+# Works with any image URL (Instagram, imgur, direct links, etc.)

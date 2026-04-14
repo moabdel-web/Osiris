@@ -3,28 +3,22 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-/* ------------------------------------------------------------------ */
-/*  Feed images                                                        */
-/* ------------------------------------------------------------------ */
-
-const TOTAL_IMAGES = 51;
-const REAL_IMAGE_COUNT = 7;
+const TOTAL_IMAGES = 12; // 2 rows on both: mobile 3 cols × 2 rows shows first 6, desktop 6 cols × 2 rows shows all 12
+const REAL_IMAGE_COUNT = 15;
 
 function getImagePath(index: number): string {
   const realIndex = (index % REAL_IMAGE_COUNT) + 1;
   return `/feed/${String(realIndex).padStart(3, "0")}.jpg`;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Grid Cell — uses plain <img> to avoid Next.js optimization issues  */
-/* ------------------------------------------------------------------ */
-
-function GridCell({ index, onClick }: { index: number; onClick: () => void }) {
+/* Grid Cell */
+function GridCell({ index, onClick, hidden }: { index: number; onClick: () => void; hidden?: boolean }) {
   return (
     <button
       onClick={onClick}
-      className="aspect-square focus:outline-none"
+      className={`focus:outline-none ${hidden ? "hidden sm:block" : ""}`}
       style={{
+        aspectRatio: "3 / 4",
         border: "2px solid #fff",
         background: "#fff",
         padding: "0",
@@ -42,10 +36,7 @@ function GridCell({ index, onClick }: { index: number; onClick: () => void }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Lightbox                                                           */
-/* ------------------------------------------------------------------ */
-
+/* Lightbox */
 function Lightbox({ index, onClose }: { index: number; onClose: () => void }) {
   return (
     <motion.div
@@ -90,30 +81,27 @@ function Lightbox({ index, onClose }: { index: number; onClose: () => void }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Feed Grid                                                          */
-/* ------------------------------------------------------------------ */
-
+/* Feed Grid — 3 cols on mobile, 6 on desktop */
 export default function FeedGrid({ layout = "grid" }: { layout?: "grid" | "list" }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   return (
     <>
       {layout === "grid" ? (
-        <div className="grid grid-cols-6 gap-[3px] bg-[#c8c8c8]" style={{ margin: "0 10px" }}>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-[2px] sm:gap-[3px] bg-[#c8c8c8]" style={{ margin: "0 4px" }}>
           {Array.from({ length: TOTAL_IMAGES }, (_, i) => (
-            <GridCell key={i} index={i} onClick={() => setLightboxIndex(i)} />
+            <GridCell key={i} index={i} onClick={() => setLightboxIndex(i)} hidden={i >= 6} />
           ))}
         </div>
       ) : (
-        <div style={{ margin: "0 10px", display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div style={{ margin: "0 6px", display: "flex", flexDirection: "column", gap: "8px" }}>
           {Array.from({ length: TOTAL_IMAGES }, (_, i) => (
             <button
               key={i}
               onClick={() => setLightboxIndex(i)}
+              className="h-[60vh] sm:h-[1500px]"
               style={{
                 width: "100%",
-                height: "1500px",
                 border: "2px solid #fff",
                 background: "#fff",
                 overflow: "hidden",
