@@ -342,9 +342,25 @@ function TourMarker({ pos, quat, stop, isSelected, onClick }: {
 /*  Inner 3D Scene                                                     */
 /* ------------------------------------------------------------------ */
 
+function ResponsiveCamera() {
+  const { camera, size } = useThree();
+  useMemo(() => {
+    // On narrow viewports (mobile), pull the camera back further so the globe fits
+    const isMobile = size.width < 640;
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.position.z = isMobile ? 11 : 8;
+      camera.position.y = isMobile ? 0.3 : 0.5;
+      camera.fov = isMobile ? 22 : 30;
+      camera.updateProjectionMatrix();
+    }
+  }, [camera, size.width]);
+  return null;
+}
+
 function GlobeInner({ selectedId, onMarkerClick }: { selectedId: string | null; onMarkerClick: (stop: TourStop) => void }) {
   return (
     <>
+      <ResponsiveCamera />
       <OrbitControls enableZoom={false} enablePan={false} rotateSpeed={0.5} dampingFactor={0.1} enableDamping />
       <color attach="background" args={["#c8c8c8"]} />
       <ambientLight intensity={1.5} />
@@ -370,8 +386,14 @@ function BottomSheet({ stop, onClose }: { stop: TourStop | null; onClose: () => 
           animate={{ y: 0 }}
           exit={{ y: "100%" }}
           transition={{ type: "spring", damping: 32, stiffness: 350, mass: 0.8 }}
+          drag="y"
+          dragConstraints={{ top: 0, bottom: 0 }}
+          dragElastic={{ top: 0, bottom: 0.4 }}
+          onDragEnd={(_, info) => {
+            if (info.offset.y > 80 || info.velocity.y > 500) onClose();
+          }}
           className="absolute bottom-0 left-0 right-0 z-40"
-          style={{ minHeight: "160px" }}
+          style={{ minHeight: "160px", touchAction: "none" }}
         >
           <div style={{
             position: "absolute", inset: 0,

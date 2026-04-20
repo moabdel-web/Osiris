@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const TOTAL_IMAGES = 12; // 2 rows on both: mobile 3 cols × 2 rows shows first 6, desktop 6 cols × 2 rows shows all 12
-const REAL_IMAGE_COUNT = 15;
+const REAL_IMAGE_COUNT = 21;
 
 function getImagePath(index: number): string {
   const realIndex = (index % REAL_IMAGE_COUNT) + 1;
