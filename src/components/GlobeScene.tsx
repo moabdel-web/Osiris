@@ -354,7 +354,7 @@ function ResponsiveCamera() {
     const vFOV = size.width < 640 ? 45 : 30;
     const fovRad = (vFOV * Math.PI) / 180;
     const globeDiameter = 2.8;
-    const occupancy = 0.55;
+    const occupancy = size.width < 640 ? 0.95 : 0.65;
     const distance = globeDiameter / (occupancy * 2 * Math.tan(fovRad / 2) * aspect);
 
     camera.position.z = distance;

@@ -5,10 +5,11 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const TOTAL_IMAGES = 12; // 2 rows on both: mobile 3 cols × 2 rows shows first 6, desktop 6 cols × 2 rows shows all 12
 const REAL_IMAGE_COUNT = 21;
+const CACHE_BUST = "v21"; // bump this when feed images change
 
 function getImagePath(index: number): string {
   const realIndex = (index % REAL_IMAGE_COUNT) + 1;
-  return `/feed/${String(realIndex).padStart(3, "0")}.jpg`;
+  return `/feed/${String(realIndex).padStart(3, "0")}.jpg?${CACHE_BUST}`;
 }
 
 /* Grid Cell */
