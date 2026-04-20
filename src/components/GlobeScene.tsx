@@ -11,14 +11,24 @@ import { motion, AnimatePresence } from "framer-motion";
 /* ------------------------------------------------------------------ */
 
 export const TOUR_STOPS = [
-  { id: "tokyo", city: "Tokyo", country: "Japan", date: "MAR 15", lat: 35.6762, lng: 139.6503, venue: "Shibuya 109" },
-  { id: "paris", city: "Paris", country: "France", date: "APR 02", lat: 48.8566, lng: 2.3522, venue: "Palais de Tokyo" },
-  { id: "lagos", city: "Lagos", country: "Nigeria", date: "APR 20", lat: 6.5244, lng: 3.3792, venue: "Eko Atlantic" },
-  { id: "nyc", city: "New York", country: "USA", date: "MAY 05", lat: 40.7128, lng: -74.006, venue: "Webster Hall" },
-  { id: "london", city: "London", country: "UK", date: "MAY 18", lat: 51.5074, lng: -0.1278, venue: "Fabric" },
-  { id: "dubai", city: "Dubai", country: "UAE", date: "JUN 01", lat: 25.2048, lng: 55.2708, venue: "D3 District" },
-  { id: "la", city: "Los Angeles", country: "USA", date: "JUN 15", lat: 34.0522, lng: -118.2437, venue: "The Row DTLA" },
-  { id: "miami", city: "Miami", country: "USA", date: "JUN 28", lat: 25.7617, lng: -80.1918, venue: "Art Basel Stage" },
+  { id: "tokyo", city: "Tokyo", country: "Japan", lat: 35.6762, lng: 139.6503 },
+  { id: "paris", city: "Paris", country: "France", lat: 48.8566, lng: 2.3522 },
+  { id: "lagos", city: "Lagos", country: "Nigeria", lat: 6.5244, lng: 3.3792 },
+  { id: "nyc", city: "New York", country: "USA", lat: 40.7128, lng: -74.006 },
+  { id: "london", city: "London", country: "UK", lat: 51.5074, lng: -0.1278 },
+  { id: "dubai", city: "Dubai", country: "UAE", lat: 25.2048, lng: 55.2708 },
+  { id: "la", city: "Los Angeles", country: "USA", lat: 34.0522, lng: -118.2437 },
+  { id: "miami", city: "Miami", country: "USA", lat: 25.7617, lng: -80.1918 },
+  { id: "seoul", city: "Seoul", country: "South Korea", lat: 37.5665, lng: 126.978 },
+  { id: "shanghai", city: "Shanghai", country: "China", lat: 31.2304, lng: 121.4737 },
+  { id: "mumbai", city: "Mumbai", country: "India", lat: 19.076, lng: 72.8777 },
+  { id: "sydney", city: "Sydney", country: "Australia", lat: -33.8688, lng: 151.2093 },
+  { id: "berlin", city: "Berlin", country: "Germany", lat: 52.52, lng: 13.405 },
+  { id: "cairo", city: "Cairo", country: "Egypt", lat: 30.0444, lng: 31.2357 },
+  { id: "moscow", city: "Moscow", country: "Russia", lat: 55.7558, lng: 37.6173 },
+  { id: "rio", city: "Rio de Janeiro", country: "Brazil", lat: -22.9068, lng: -43.1729 },
+  { id: "mexico", city: "Mexico City", country: "Mexico", lat: 19.4326, lng: -99.1332 },
+  { id: "istanbul", city: "Istanbul", country: "Turkey", lat: 41.0082, lng: 28.9784 },
 ];
 
 export type TourStop = (typeof TOUR_STOPS)[number];
@@ -50,6 +60,112 @@ const STOP_TRANSFORMS = TOUR_STOPS.map((stop) => {
     facingY,
   };
 });
+
+/* ------------------------------------------------------------------ */
+/*  Latitude/Longitude Grid                                            */
+/* ------------------------------------------------------------------ */
+
+function LatLongGrid() {
+  const lines = useMemo(() => {
+    const r = GLOBE_RADIUS + 0.005;
+    const result: THREE.Vector3[][] = [];
+
+    // Latitude circles (horizontal)
+    for (let lat = -60; lat <= 60; lat += 30) {
+      const points: THREE.Vector3[] = [];
+      const phi = (90 - lat) * (Math.PI / 180);
+      for (let lng = 0; lng <= 360; lng += 4) {
+        const theta = (lng * Math.PI) / 180;
+        points.push(new THREE.Vector3(
+          -(r * Math.sin(phi) * Math.cos(theta)),
+          r * Math.cos(phi),
+          r * Math.sin(phi) * Math.sin(theta)
+        ));
+      }
+      result.push(points);
+    }
+
+    // Longitude lines (vertical meridians)
+    for (let lng = 0; lng < 360; lng += 30) {
+      const points: THREE.Vector3[] = [];
+      const theta = (lng * Math.PI) / 180;
+      for (let lat = -90; lat <= 90; lat += 4) {
+        const phi = (90 - lat) * (Math.PI / 180);
+        points.push(new THREE.Vector3(
+          -(r * Math.sin(phi) * Math.cos(theta)),
+          r * Math.cos(phi),
+          r * Math.sin(phi) * Math.sin(theta)
+        ));
+      }
+      result.push(points);
+    }
+
+    return result;
+  }, []);
+
+  return (
+    <>
+      {lines.map((points, i) => {
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        return (
+          <primitive key={i} object={new THREE.Line(
+            geometry,
+            new THREE.LineBasicMaterial({ color: "#6a92b0", transparent: true, opacity: 0.2 })
+          )} />
+        );
+      })}
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Glowing Arcs between tour stops                                    */
+/* ------------------------------------------------------------------ */
+
+function TourArcs() {
+  const arcs = useMemo(() => {
+    const result: { points: THREE.Vector3[]; key: string }[] = [];
+    const r = GLOBE_RADIUS;
+
+    // Connect each tour stop to the next in sequence (forming a tour path)
+    for (let i = 0; i < TOUR_STOPS.length - 1; i++) {
+      const from = latLngToVec3(TOUR_STOPS[i].lat, TOUR_STOPS[i].lng, r);
+      const to = latLngToVec3(TOUR_STOPS[i + 1].lat, TOUR_STOPS[i + 1].lng, r);
+
+      // Midpoint arched above the surface
+      const mid = from.clone().add(to).multiplyScalar(0.5);
+      const distance = from.distanceTo(to);
+      const arcHeight = r + distance * 0.35;
+      mid.normalize().multiplyScalar(arcHeight);
+
+      // Quadratic bezier curve
+      const curve = new THREE.QuadraticBezierCurve3(from, mid, to);
+      const points = curve.getPoints(50);
+      result.push({ points, key: `${TOUR_STOPS[i].id}-${TOUR_STOPS[i+1].id}` });
+    }
+
+    return result;
+  }, []);
+
+  return (
+    <>
+      {arcs.map(({ points, key }) => {
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        return (
+          <primitive key={key} object={new THREE.Line(
+            geometry,
+            new THREE.LineBasicMaterial({
+              color: "#4a7abc",
+              transparent: true,
+              opacity: 0.75,
+              linewidth: 2,
+            })
+          )} />
+        );
+      })}
+    </>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /*  Earth Globe — accepts selectedId to control rotation               */
@@ -131,11 +247,14 @@ function EarthGlobe({ selectedId, onMarkerClick }: { selectedId: string | null; 
         <sphereGeometry args={[GLOBE_RADIUS + 0.001, 128, 64]} />
         <meshBasicMaterial map={waterMask} color="#90a8c0" transparent opacity={0.25} depthWrite={false} />
       </mesh>
-      {/* Blue country outlines — additive so only bright border lines show */}
+      {/* Blue country outlines */}
       <mesh>
         <sphereGeometry args={[GLOBE_RADIUS + 0.002, 128, 64]} />
         <meshBasicMaterial map={topoMap} color="#2255aa" transparent blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
+
+      {/* Latitude/longitude grid lines */}
+      <LatLongGrid />
 
       {/* Tour markers */}
       {STOP_TRANSFORMS.map(({ stop, pos, quat }) => (
@@ -270,28 +389,13 @@ function BottomSheet({ stop, onClose }: { stop: TourStop | null; onClose: () => 
                 <h2 className="text-[16px] sm:text-[18px]" style={{ fontWeight: "bold", color: "#222" }}>{stop.city}</h2>
                 <p className="text-[11px] sm:text-[12px]" style={{ color: "#888", marginTop: "2px" }}>{stop.country}</p>
               </div>
-              <div style={{
-                padding: "4px 12px",
-                background: "linear-gradient(180deg, #8eadc4 0%, #4d7a9a 100%)",
-                borderRadius: "4px",
-                border: "1px solid #3d6580",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.3)",
-              }}>
-                <span style={{ fontSize: "12px", fontWeight: "bold", color: "#fff", textShadow: "0 -1px 0 rgba(0,0,0,0.2)" }}>{stop.date}</span>
-              </div>
             </div>
 
             <div style={{ height: "1px", background: "#c8c8c8", marginBottom: "12px" }} />
 
-            <div style={{ display: "flex", gap: "16px" }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: "11px", color: "#999", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "4px" }}>Venue</div>
-                <div style={{ fontSize: "14px", color: "#333", fontWeight: 500 }}>{stop.venue}</div>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: "11px", color: "#999", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "4px" }}>Coordinates</div>
-                <div style={{ fontSize: "11px", color: "#555", fontFamily: "var(--font-mono)" }}>{stop.lat.toFixed(4)}°, {stop.lng.toFixed(4)}°</div>
-              </div>
+            <div>
+              <div style={{ fontSize: "11px", color: "#999", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "4px" }}>Coordinates</div>
+              <div style={{ fontSize: "12px", color: "#555", fontFamily: "var(--font-mono)" }}>{stop.lat.toFixed(4)}°, {stop.lng.toFixed(4)}°</div>
             </div>
 
             <button
@@ -353,6 +457,8 @@ export default function GlobeScene({
       {/* Desktop: sidebar list */}
       <div className="absolute top-3 left-3 hidden sm:block" style={{
         maxWidth: "220px",
+        maxHeight: "calc(100% - 24px)",
+        overflowY: "auto",
         background: "rgba(255,255,255,0.92)",
         border: "1px solid #b8b8b8",
         borderRadius: "6px",
@@ -360,7 +466,7 @@ export default function GlobeScene({
         boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
       }}>
         <p style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "#888", letterSpacing: "0.1em", marginBottom: "8px", textTransform: "uppercase" }}>
-          World Tour
+          Destinations
         </p>
         <div className="flex flex-col gap-1">
           {TOUR_STOPS.map((stop) => (
@@ -385,7 +491,7 @@ export default function GlobeScene({
               }}
             >
               <span>{stop.city}</span>
-              <span style={{ color: spinTarget?.id === stop.id ? "rgba(255,255,255,0.7)" : "#999", fontSize: "10px" }}>{stop.date}</span>
+              <span style={{ color: spinTarget?.id === stop.id ? "rgba(255,255,255,0.6)" : "#aaa", fontSize: "9px" }}>{stop.country.slice(0, 3).toUpperCase()}</span>
             </button>
           ))}
         </div>
