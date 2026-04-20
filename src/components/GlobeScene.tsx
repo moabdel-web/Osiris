@@ -345,15 +345,23 @@ function TourMarker({ pos, quat, stop, isSelected, onClick }: {
 function ResponsiveCamera() {
   const { camera, size } = useThree();
   useMemo(() => {
-    // On narrow viewports (mobile), pull the camera back further so the globe fits
-    const isMobile = size.width < 640;
-    if (camera instanceof THREE.PerspectiveCamera) {
-      camera.position.z = isMobile ? 11 : 8;
-      camera.position.y = isMobile ? 0.3 : 0.5;
-      camera.fov = isMobile ? 22 : 30;
-      camera.updateProjectionMatrix();
-    }
-  }, [camera, size.width]);
+    if (!(camera instanceof THREE.PerspectiveCamera)) return;
+
+    const aspect = size.width / size.height;
+    // Globe diameter = 2.8 (radius 1.4). Target the globe to occupy ~55% of horizontal view.
+    // For perspective camera: visible horizontal width = 2 * distance * tan(vFOV/2) * aspect
+    // So: distance = globeDiameter / (0.55 * 2 * tan(vFOV/2) * aspect)
+    const vFOV = size.width < 640 ? 45 : 30;
+    const fovRad = (vFOV * Math.PI) / 180;
+    const globeDiameter = 2.8;
+    const occupancy = 0.55;
+    const distance = globeDiameter / (occupancy * 2 * Math.tan(fovRad / 2) * aspect);
+
+    camera.position.z = distance;
+    camera.position.y = size.width < 640 ? 0.2 : 0.5;
+    camera.fov = vFOV;
+    camera.updateProjectionMatrix();
+  }, [camera, size.width, size.height]);
   return null;
 }
 

@@ -72,17 +72,17 @@ export default function ProfileHeader({ onMapClick, feedLayout, onLayoutChange }
               }}
             >
               <div style={{ flex: 1, textAlign: "center", padding: "8px 2px" }}>
-                <div className="text-[16px] sm:text-[20px]" style={{ fontWeight: "bold", color: "#222", lineHeight: 1 }}>51</div>
-                <div className="text-[9px] sm:text-[11px]" style={{ color: "#888", marginTop: "3px" }}>photos</div>
+                <div className="text-[16px] sm:text-[20px]" style={{ fontWeight: "bold", color: "#222", lineHeight: 1 }}>628</div>
+                <div className="text-[9px] sm:text-[11px]" style={{ color: "#888", marginTop: "3px" }}>posts</div>
               </div>
               <div style={{ width: "1px", background: "#d0d0d0", alignSelf: "stretch" }} />
               <div style={{ flex: 1, textAlign: "center", padding: "8px 2px" }}>
-                <div className="text-[16px] sm:text-[20px]" style={{ fontWeight: "bold", color: "#222", lineHeight: 1 }}>53.3K</div>
+                <div className="text-[16px] sm:text-[20px]" style={{ fontWeight: "bold", color: "#222", lineHeight: 1 }}>609K</div>
                 <div className="text-[9px] sm:text-[11px]" style={{ color: "#888", marginTop: "3px" }}>followers</div>
               </div>
               <div style={{ width: "1px", background: "#d0d0d0", alignSelf: "stretch" }} />
               <div style={{ flex: 1, textAlign: "center", padding: "8px 2px" }}>
-                <div className="text-[16px] sm:text-[20px]" style={{ fontWeight: "bold", color: "#222", lineHeight: 1 }}>0</div>
+                <div className="text-[16px] sm:text-[20px]" style={{ fontWeight: "bold", color: "#222", lineHeight: 1 }}>136</div>
                 <div className="text-[9px] sm:text-[11px]" style={{ color: "#888", marginTop: "3px" }}>following</div>
               </div>
             </div>
